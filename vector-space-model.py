@@ -1,34 +1,26 @@
-"""Enunciado:
+"""
+Enunciado:
 
-Implemente um mini-buscador booleando sobre um pequeno acervo de notícias internas de empresa.
+Implemente um ranqueador VSM para um um pequeno acervo de notícias internas de empresa.
 Os documentos estarão em memória como uma lista de dicionários: [{ "id": "DOC1", "titulo": "...", "texto": "..." }, ...].
-Construa um índice invertido de termos → {ids de documentos}.
-Implemente uma função buscar_booleana(consulta_str) que aceite expressões com AND, OR, NOT (maiúsculas), parênteses e termos simples.
+Pré-processamento: tokenização simples, minúsculas, remoção de stopwords (pt-BR).
+Vetorize os documentos usando TF-IDF.
+Calcule TF-IDF por termo/documento.
+Converta a consulta do usuário em vetor TF-IDF (consistência com o pipeline do índice).
+Calcule similaridade cosseno entre a consulta e os documentos.
+Retorne os top-K documentos mais similares à consulta.
 
-Exemplos de consulta:
-("vpn" AND "acesso") AND NOT "jornada"
-"benefícios" OR ("plano" AND "saúde")
-
-Normalização mínima: minúsculas, remoção de pontuação simples e acentos; preserve palavras com hífen como uma única unidade (ex.: “single-sign-on”).
-
-Saída: lista ordenada por id dos documentos que satisfazem exatamente a lógica booleana.
+Exiba também um snippet simples do documento (por ex., as 20 primeiras palavras do primeiro parágrafo).
 """
 
-import os
 import nltk
-import shutil
-import string
-from whoosh.index import create_in
-from whoosh.fields import *
-from whoosh.qparser import QueryParser
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
 
-nltk.download("punkt_tab")
+nltk.download("punkt")
 nltk.download("stopwords")
-
-import warnings
-
-# Suprimir avisos de sintaxe do Whoosh
-warnings.filterwarnings("ignore", category=SyntaxWarning)
 
 # Exemplo de documentos
 documentos = [
@@ -110,70 +102,47 @@ documentos = [
 ]
 
 
-# Função para preprocessar o texto: minúsculas, remoção de pontuação (exceto hífen), tokenização e remoção de stopwords.
+# Função de pré-processamento: tokenização, minúsculas e remoção de stopwords
 def preprocessar_texto(texto):
     texto = texto.lower()
-    texto = texto.translate(str.maketrans("", "", string.punctuation.replace("-", "")))
-    tokens = nltk.word_tokenize(texto, language="portuguese")
-    tokens = [word for word in tokens if word.isalnum() or "-" in word]
-    stopwords = set(nltk.corpus.stopwords.words("portuguese")) - {
-        "e",
-        "ou",
-        "não",
-        "nunca",
-        "sem",
-        "nem",
-    }
-    tokens = [word for word in tokens if word not in stopwords]
+    tokens = word_tokenize(texto)
+    stop_words = set(stopwords.words("portuguese"))
+    tokens = [word for word in tokens if word.isalnum() and word not in stop_words]
     return tokens
 
 
-# Função para construir o índice invertido usando Whoosh
-def construir_indice_invertido(documentos):
-    if os.path.exists("indexdir"):
-        shutil.rmtree("indexdir")
-    os.mkdir("indexdir")
-
-    schema = Schema(
-        id=ID(stored=True), titulo=TEXT(stored=True), texto=TEXT(stored=True)
-    )
-    index = create_in("indexdir", schema)
-
-    writer = index.writer()
-    for doc in documentos:
-        writer.add_document(id=doc["id"], titulo=doc["titulo"], texto=doc["texto"])
-    writer.commit()
-    return index
+def vetorizar_documentos(documentos_preprocessados):
+    textos_processados = [doc["texto"] for doc in documentos_preprocessados]
+    vectorizer = TfidfVectorizer()
+    tfidf_matrix = vectorizer.fit_transform(textos_processados)
+    return vectorizer, tfidf_matrix
 
 
-# Função de busca booleana
-def buscar_booleana(consulta):
-    parser = QueryParser("texto", schema=index.schema)
-    parsed_query = parser.parse(consulta)
+def pesquisar_tdidf(consulta, vectorizer, tfidf_matrix, documentos, top_k=5):
+    consulta_vec = vectorizer.transform([consulta])
+    similaridades = cosine_similarity(tfidf_matrix, consulta_vec).flatten()
+    indices_top_k = similaridades.argsort()[-top_k:][::-1]
+    resultados = [
+        (documentos[i]["id"], similaridades[i])
+        for i in indices_top_k
+        if similaridades[i] > 0
+    ]
+    return resultados
 
-    with index.searcher() as searcher:
-        results = searcher.search(parsed_query, limit=None)
-        return sorted([(hit["id"], hit["texto"]) for hit in results])
 
+# Exemplo de consulta
+consulta = "plano de saúde"
 
 # Preparar documentos
 for doc in documentos:
     doc["texto"] = " ".join(preprocessar_texto(doc["texto"]))
 
-# Construir índice invertido
-index = construir_indice_invertido(documentos)
+# Vetorizar documentos
+vectorizer, tfidf_matrix = vetorizar_documentos(documentos)
 
-# Exemplos de consultas
-consultas = [
-    '("vpn" AND "acesso") AND NOT "jornada"',
-    '"benefícios" OR ("plano" AND "saúde")',
-    '"single-sign-on" AND NOT "senha"',
-    '("plano" OR "benefícios") AND "saúde"',
-    'NOT "phishing" AND "segurança"',
-]
+# Pesquisar consulta
+resultados = pesquisar_tdidf(consulta, vectorizer, tfidf_matrix, documentos, top_k=5)
 
-for consulta in consultas:
-    resultados = buscar_booleana(consulta)
-    # Retornar apenas doc_text
-    resultados = [doc_text for doc_id, doc_text in resultados]
-    print(f"Consulta: {consulta}\nResultados: {resultados}\n")
+# Exibir resultados
+for doc_id, score in resultados:
+    print(f"Documento: {doc_id}, Similaridade: {score:.4f}")
