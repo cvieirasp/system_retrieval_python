@@ -1,15 +1,16 @@
 # Sistema de Recuperação de Informação - Curso System Retrieval
 
-Este repositório contém implementações práticas desenvolvidas como parte do aprendizado no curso **System Retrieval**, focando em técnicas fundamentais de recuperação de informação, busca booleana e modelo vetorial.
+Este repositório contém implementações práticas desenvolvidas como parte do aprendizado no curso **System Retrieval**, focando em técnicas fundamentais de recuperação de informação, busca booleana, modelo vetorial e modelo probabilístico.
 
 ## 📋 Descrição do Projeto
 
-O projeto implementa dois modelos clássicos de recuperação de informação operando sobre um pequeno acervo de notícias internas de empresa. O sistema demonstra conceitos fundamentais de recuperação de informação, incluindo:
+O projeto implementa três modelos clássicos de recuperação de informação operando sobre um pequeno acervo de notícias internas de empresa. O sistema demonstra conceitos fundamentais de recuperação de informação, incluindo:
 
 - Construção de índices invertidos
 - Processamento e normalização de texto
 - Implementação de busca booleana com operadores lógicos
 - Modelo de espaço vetorial com TF-IDF
+- Modelo probabilístico BM25
 - Cálculo de similaridade cosseno
 - Ranqueamento de documentos por relevância
 
@@ -38,54 +39,17 @@ O projeto implementa dois modelos clássicos de recuperação de informação op
 - **Preprocessamento**: Tokenização, minúsculas e remoção de stopwords (pt-BR)
 - **Similaridade Cosseno**: Cálculo de similaridade entre consulta e documentos
 - **Ranqueamento**: Retorna top-K documentos mais similares à consulta
-- **Snippets**: Exibição de trechos relevantes dos documentos encontrados
 
-## 🔍 Exemplos de Uso
+### Probabilistic Retrieval Model (`probabilistic-retrieval-model.py`)
 
-### Consultas Booleanas
+**Objetivo**: Implementar um ranqueador probabilístico usando BM25.
 
-```python
-# Busca por documentos que contenham "vpn" E "acesso", mas NÃO "jornada"
-'("vpn" AND "acesso") AND NOT "jornada"'
-
-# Busca por documentos com "benefícios" OU a combinação de "plano" E "saúde"
-'"benefícios" OR ("plano" AND "saúde")'
-
-# Busca por "single-sign-on" excluindo documentos com "senha"
-'"single-sign-on" AND NOT "senha"'
-```
-
-### Consultas Vetoriais
-
-```python
-# Busca ranqueada por relevância
-consulta = "plano de saúde"
-# Retorna: documentos ordenados por similaridade cosseno
-
-consulta = "segurança VPN acesso"
-# Retorna: top-5 documentos mais similares com scores
-```
-
-## 📚 Conceitos de System Retrieval Aplicados
-
-Este projeto demonstra aplicação prática dos seguintes conceitos estudados no curso:
-
-### Modelo Booleano
-1. **Recuperação Exata**: Implementação de lógica booleana estrita
-2. **Índices Invertidos**: Estrutura fundamental para busca eficiente
-3. **Expressões Complexas**: Parsing e execução de consultas com parênteses
-
-### Modelo Vetorial
-1. **TF-IDF**: Cálculo de peso dos termos baseado em frequência e raridade
-2. **Espaço Vetorial**: Representação de documentos como vetores numéricos
-3. **Similaridade Cosseno**: Medida de similaridade angular entre vetores
-4. **Ranqueamento**: Ordenação de resultados por relevância
-
-### Processamento de Texto
-1. **Normalização**: Conversão para minúsculas e remoção de pontuação
-2. **Tokenização**: Divisão do texto em unidades lexicais
-3. **Stopwords**: Remoção de palavras funcionais em português
-4. **Preservação Contextual**: Manutenção de termos compostos com hífen
+**Características principais**:
+- **Modelo BM25**: Implementação do algoritmo BM25 (Best Matching 25)
+- **Preprocessamento**: Tokenização, minúsculas e remoção de stopwords em português
+- **Ranqueamento Probabilístico**: Scoring baseado em probabilidade de relevância
+- **Corpus Tokenizado**: Processamento otimizado para documentos corporativos
+- **Biblioteca rank-bm25**: Uso da implementação BM25Okapi
 
 ## 🛠️ Dependências
 
@@ -93,13 +57,15 @@ Este projeto demonstra aplicação prática dos seguintes conceitos estudados no
 nltk>=3.8
 whoosh>=2.7.4
 scikit-learn>=1.3.0
+rank-bm25>=0.2.2
+numpy>=1.24.0
 ```
 
 ## 🚀 Como Executar
 
 1. **Instalar dependências**:
 ```bash
-uv add nltk whoosh scikit-learn
+uv add nltk whoosh scikit-learn rank-bm25 numpy
 ```
 
 2. **Executar os scripts**:
@@ -110,6 +76,9 @@ uv run boolean-retrieval-model.py
 
 # Modelo Vetorial
 uv run vector-space-model.py
+
+# Modelo Probabilístico BM25
+uv run probabilistic-retrieval-model.py
 ```
 
 3. **Resultado**: Os scripts executarão automaticamente consultas de exemplo e exibirão os resultados correspondentes.
@@ -127,18 +96,19 @@ O sistema trabalha com 15 documentos simulando comunicados corporativos sobre:
 
 ## 📈 Comparação dos Modelos
 
-| Aspecto | Modelo Booleano | Modelo Vetorial |
-|---------|----------------|-----------------|
-| **Tipo de busca** | Exata (sim/não) | Ranqueada por relevância |
-| **Operadores** | AND, OR, NOT, () | Termos com pesos TF-IDF |
-| **Resultados** | Conjunto não ordenado | Lista ordenada por score |
-| **Flexibilidade** | Consultas precisas | Consultas aproximadas |
-| **Uso ideal** | Busca específica | Exploração e descoberta |
+| Aspecto | Modelo Booleano | Modelo Vetorial | Modelo Probabilístico |
+|---------|----------------|-----------------|--------------------|
+| **Tipo de busca** | Exata (sim/não) | Ranqueada por relevância | Ranqueada probabilisticamente |
+| **Operadores** | AND, OR, NOT, () | Termos com pesos TF-IDF | Termos com scores BM25 |
+| **Resultados** | Conjunto não ordenado | Lista ordenada por similaridade cosseno | Lista ordenada por probabilidade |
+| **Flexibilidade** | Consultas precisas | Consultas aproximadas | Balanceamento TF/IDF otimizado |
+| **Uso ideal** | Busca específica | Exploração e descoberta | Recuperação de alta precisão |
+| **Algoritmo base** | Álgebra booleana | Álgebra linear (vetores) | Teoria da probabilidade |
 
 ## 🎯 Objetivos de Aprendizado
 
-- **Implementar** dois modelos fundamentais de recuperação de informação
-- **Comparar** abordagens booleana vs. vetorial na prática
+- **Implementar** três modelos fundamentais de recuperação de informação
+- **Comparar** abordagens booleana, vetorial e probabilística na prática
 - **Experimentar** diferentes estratégias de preprocessamento de texto
 - **Avaliar** a eficácia de consultas em cenários corporativos reais
 - **Compreender** trade-offs entre precisão e recall
@@ -146,12 +116,11 @@ O sistema trabalha com 15 documentos simulando comunicados corporativos sobre:
 ## 📝 Estrutura do Projeto
 
 ```
-system_retrieval/
-├── boolean-retrieval-model.py    # Implementação do modelo booleano
-├── vector-space-model.py         # Implementação do modelo vetorial TF-IDF
-├── pyproject.toml               # Configurações do projeto
-├── README.md                    # Este arquivo
-└── indexdir/                    # Diretório do índice Whoosh (gerado automaticamente)
+├── boolean-retrieval-model.py       # Implementação do modelo booleano
+├── vector-space-model.py           # Implementação do modelo vetorial 
+├── probabilistic-retrieval-model.py # Implementação do modelo probabilístico BM25
+├── pyproject.toml                  # Configurações do projeto
+├── README.md                       # Este arquivo
 ```
 
 ---

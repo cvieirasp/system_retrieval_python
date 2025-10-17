@@ -1,23 +1,21 @@
 """
 Enunciado:
 
-Implemente um ranqueador VSM para um um pequeno acervo de notícias internas de empresa.
+Implemente um ranqueador BM25 para um pequeno acervo de notícias internas de empresa.
 Os documentos estarão em memória como uma lista de dicionários: [{ "id": "DOC1", "titulo": "...", "texto": "..." }, ...].
-Pré-processamento: tokenização simples, minúsculas, remoção de stopwords (pt-BR).
-Vetorize os documentos usando TF-IDF.
-Calcule TF-IDF por termo/documento.
-Converta a consulta do usuário em vetor TF-IDF (consistência com o pipeline do índice).
-Calcule similaridade cosseno entre a consulta e os documentos.
-Retorne os top-K documentos mais similares à consulta.
+Pipeline de texto: tokenização simples, minúsculas, remoção de stopwords.
+Vetorize os documentos usando o modelo BM25.
+Calcule a pontuação BM25 entre a consulta e os documentos.
+Retorne os documentos mais relevantes à consulta.
 """
 
 import nltk
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
+from rank_bm25 import BM25Okapi
 
-nltk.download("punkt")
+nltk.download("punkt_tab")
 nltk.download("stopwords")
 
 # Exemplo de documentos
@@ -100,7 +98,7 @@ documentos = [
 ]
 
 
-# Função de pré-processamento: tokenização, minúsculas e remoção de stopwords
+# Pré-processamento: tokenização, minúsculas e remoção de stopwords
 def preprocessar_texto(texto):
     texto = texto.lower()
     tokens = word_tokenize(texto)
@@ -109,38 +107,29 @@ def preprocessar_texto(texto):
     return tokens
 
 
-def vetorizar_documentos(documentos_preprocessados):
-    textos_processados = [doc["texto"] for doc in documentos_preprocessados]
-    vectorizer = TfidfVectorizer()
-    tfidf_matrix = vectorizer.fit_transform(textos_processados)
-    return vectorizer, tfidf_matrix
+# Construir modelo BM25
+def construir_bm25(documentos):
+    corpus = [preprocessar_texto(doc["texto"]) for doc in documentos]
+    bm25 = BM25Okapi(corpus)
+    return bm25
 
 
-def pesquisar_tdidf(consulta, vectorizer, tfidf_matrix, documentos, top_k=5):
-    consulta_vec = vectorizer.transform([consulta])
-    similaridades = cosine_similarity(tfidf_matrix, consulta_vec).flatten()
-    indices_top_k = similaridades.argsort()[-top_k:][::-1]
-    resultados = [
-        (documentos[i]["id"], similaridades[i])
-        for i in indices_top_k
-        if similaridades[i] > 0
-    ]
-    return resultados
+# Pesquisar usando BM25
+def pesquisar_bm225(consulta, bm25):
+    consulta_tokens = preprocessar_texto(consulta)
+    scores = bm25.get_scores(consulta_tokens)
+    return scores
 
 
 # Exemplo de consulta
 consulta = "plano de saúde"
 
-# Preparar documentos
-for doc in documentos:
-    doc["texto"] = " ".join(preprocessar_texto(doc["texto"]))
+# Construir modelo BM25
+bm25 = construir_bm25(documentos)
 
-# Vetorizar documentos
-vectorizer, tfidf_matrix = vetorizar_documentos(documentos)
-
-# Pesquisar consulta
-resultados = pesquisar_tdidf(consulta, vectorizer, tfidf_matrix, documentos, top_k=5)
+# Pesquisar usando BM25
+resultados = pesquisar_bm225(consulta, bm25)
 
 # Exibir resultados
-for doc_id, score in resultados:
-    print(f"Documento: {doc_id}, Similaridade: {score:.4f}")
+for i in np.argsort(resultados)[::-1]:
+    print(f"Documento: {i}: {documentos[i]}")
